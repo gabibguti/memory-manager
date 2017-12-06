@@ -12,15 +12,30 @@
 #include <unistd.h>		// Symbolic Constants and Types
 #include <sys/types.h>		// Types Definition
 
-#include "errorControl.h"	// Error Control Definitions	
+#include "errorControl.h"	// Error Control Definitions
+#include "cacheList.h"		// List Definitions	
+
+#define PAGE_TABLE_SIZE 20
+
+enum frameValidation 	
+{
+	invalid		=	0,
+	valid	        =	1
+};
+
+typedef enum frameValidation frameVal;			// Frame validation
+
+List* cache;						// Global cache list
 
 void pageFault (int signal);												// SIGUSR1 - Page Fault
-void startProcess (char* acessList);											// Start a process with an acess list to execute
+void startProcess (char* accessList);											// Start a process with an access list to execute
 void createPageTable (unsigned int** pageTable, int* shmArea_pageTable, int user_process);				// Create shared memory area and attach refence to page table
 void destroyPageTable (unsigned int* pageTable, int shmArea_pageTable);							// Deattach reference to page table
-void initializeUserProcess (unsigned int** pageTable, int* shmArea_pageTable, char* acessList, int user_process);	// Create a page table for process and start process
+void initializeUserProcess (unsigned int** pageTable, int* shmArea_pageTable, char* accessList, int user_process);	// Create a page table for process and start process
 void endUserProcess (unsigned int* pageTable, int shmArea_pageTable);							// Destroy process page table
 void chooseKey(key_t* key_pageTable, int processNumber);								// Generates a key to create shared memory segment
+void intializePageTable (unsigned int* pageTable);
+frameVal findFrameIndex (unsigned int* pageTable, unsigned int pageIndex, unsigned int* frameIndex);
 
 /* Main */
 int main(int argc, char * argv[])
@@ -29,20 +44,42 @@ int main(int argc, char * argv[])
 	int pid_memManager;
 	int shmArea_pageTable;
 	unsigned int* pageTable;
-	char* acessList = "acessList1.txt";
+	char* accessList = "accessList1.txt";
+	Frame* f = newFrame (1, 3000);	
+	Frame* a;
+	
+	cache = newList(cache); // Create cache
 
 	signal(SIGUSR1, pageFault); // Define SIGUSR1
 
 	pid_memManager = getpid();
 	
-	// Declarations
 	printf("Memory Manager start\n");
 
-	initializeUserProcess (&pageTable, &shmArea_pageTable, acessList, 0);
+	/*
+	initializeUserProcess (&pageTable, &shmArea_pageTable, accessList, 0);
+
+	intializePageTable (pageTable);
 
 	waitpid(-1, NULL, 0); // Wait for all childs (user processes) to end
 
 	endUserProcess (pageTable, shmArea_pageTable);
+	*/
+
+	cache = listInsert(cache, f);
+	cache = listInsert(cache, f);
+
+	listPrint(cache);
+
+	printf("---------\n");
+
+	cache = listRemove(cache, &a);
+	cache = listRemove(cache, &a);
+	cache = listRemove(cache, &a);
+
+	// Finalizations
+	listPrint(cache);
+	cache = listFreeAll(cache); // Cache - List - FREE
 
 	printf("Memory Manager end\n");
 
@@ -76,14 +113,14 @@ void pageFault (int signal)
 
 /* Auxiliar Functions */
 
-void startProcess (char* acessList)	// Start new process with an acess list
+void startProcess (char* accessList)	// Start new process with an access list
 {
 	int execError;
 	char * user_args[2];
 	pid_t pid_userProcess;
 
-	user_args[0] = (char*) malloc (strlen(acessList)*sizeof(char));
-	strcpy(user_args[0], acessList);
+	user_args[0] = (char*) malloc (strlen(accessList)*sizeof(char));
+	strcpy(user_args[0], accessList);
 	user_args[1] = NULL;
 
 	pid_userProcess = fork(); // Create a user process
@@ -114,9 +151,7 @@ void createPageTable (unsigned int** pageTable, int* shmArea_pageTable, int user
 {
 	int errorControl;
 	key_t key_pageTable;
-	int shmSize_pageTable = (1)*sizeof(unsigned int);
-
-	// pow(2, 16)
+	int shmSize_pageTable = (PAGE_TABLE_SIZE)*sizeof(unsigned int);
 
 	printf("Creating page table!\n");
 
@@ -145,10 +180,24 @@ void destroyPageTable (unsigned int* pageTable, int shmArea_pageTable)
 	failVerification(errorControl, shm_ctl);
 }
 
-void initializeUserProcess (unsigned int** pageTable, int* shmArea_pageTable, char* acessList, int user_process)
+void intializePageTable (unsigned int* pageTable)
+{
+	int i;
+	unsigned int page;
+
+	for(i = 0; i < PAGE_TABLE_SIZE; i ++)
+	{
+		page = i;
+		page = page << 16;
+		pageTable[i] = page;
+//		printf("Page table [%d] = %8x\n", i, pageTable[i]);
+	}
+}
+
+void initializeUserProcess (unsigned int** pageTable, int* shmArea_pageTable, char* accessList, int user_process)
 {
 		createPageTable(pageTable, shmArea_pageTable, user_process);
-		startProcess(acessList);	
+		startProcess(accessList);	
 }
 
 void endUserProcess (unsigned int* pageTable, int shmArea_pageTable)
@@ -162,6 +211,18 @@ void chooseKey(key_t* key_pageTable, int processNumber)
 	printf("Page Table of process %d is associated with key %d\n", processNumber, *key_pageTable);
 }
 
+frameVal findFrameIndex (unsigned int* pageTable, unsigned int pageIndex, unsigned int* frameIndex)
+{
+	int i = (int) pageIndex;
+	*frameIndex = ((pageTable[i] << 16) >> 16);
+
+	if(*frameIndex == 0)
+	{
+		return invalid;
+	}
+
+	return valid;
+}
 
 
 

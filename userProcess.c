@@ -16,6 +16,8 @@
 
 #include "errorControl.h"	// Error Control Definitions	
 
+#define PAGE_TABLE_SIZE 20
+
 void openFile (FILE** file, char* filename);						// Opens a file by a file name
 void closeFile (FILE* file);								// Closes a file
 void readFile (FILE* file);								// Read a file and print lines
@@ -29,19 +31,19 @@ void unreferencePageTable (unsigned int* pageTable);
 /* Main */
 int main(int argc, char *argv[])
 {
-	char* acessList;
+	char* accessList;
 	unsigned int* pageTable;
 
-	acessList = (char*) malloc (strlen(argv[0])*sizeof(char));
-	strcpy(acessList, argv[0]);
+	accessList = (char*) malloc (strlen(argv[0])*sizeof(char));
+	strcpy(accessList, argv[0]);
 
 	printf("\n***User Process start***\n");
 
 	referencePageTable (&pageTable, 0);
 
-	printf("Process acess list: %s\n", acessList);
+	printf("Process access list: %s\n", accessList);
 	
-	printFileContent (acessList);
+	printFileContent (accessList);
 
 	unreferencePageTable (pageTable);
 
@@ -75,7 +77,7 @@ void readFile (FILE* file)
 
 	pid_process = getpid();
 
-	// Read from acess list of process from file
+	// Read from access list of process from file
 	while(fscanf(file, "%x %c ", &adress, &rw) != -1)
 	{
 		index = adress >> 16;
@@ -142,7 +144,7 @@ void referencePageTable (unsigned int** pageTable, int user_process)
 	int errorControl;
 	int shmArea_pageTable;
 	key_t key_pageTable;
-	int shmSize_pageTable = (1)*sizeof(unsigned int);
+	int shmSize_pageTable = (PAGE_TABLE_SIZE)*sizeof(unsigned int);
 
 	// pow(2, 16)
 
