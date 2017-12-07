@@ -45,8 +45,6 @@ int main(int argc, char * argv[])
 	int shmArea_pageTable;
 	unsigned int* pageTable;
 	char* accessList = "accessList1.txt";
-	Frame* f = newFrame (1, 3000);	
-	Frame* a;
 	
 	cache = newList(cache); // Create cache
 
@@ -65,17 +63,6 @@ int main(int argc, char * argv[])
 
 	endUserProcess (pageTable, shmArea_pageTable);
 	*/
-
-	cache = listInsert(cache, f);
-	cache = listInsert(cache, f);
-
-	listPrint(cache);
-
-	printf("---------\n");
-
-	cache = listRemove(cache, &a);
-	cache = listRemove(cache, &a);
-	cache = listRemove(cache, &a);
 
 	// Finalizations
 	listPrint(cache);

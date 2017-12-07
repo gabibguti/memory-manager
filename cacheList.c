@@ -38,6 +38,7 @@ int listLength (List* l)						// Calculate length of list
 List* listInsert(List* l, Frame* f)				// Push frame to list
 {
 	List * p = l;
+	List * b;
 	List* new;
 	Frame* fCopy;
 
@@ -57,30 +58,40 @@ List* listInsert(List* l, Frame* f)				// Push frame to list
 
 	setFrameAccessFrequency(fCopy, getFrameAccessFrequency(f));
 	setFrameBitM(fCopy, getFrameBitM(f));
+	upFrameAccessFrequency(fCopy);
 	new->f = fCopy;
 	new->next = NULL;
 
 	if(l == NULL)
 	{
 		l = new;
+		return l;
 	}
-	else
+	
+	if(getFrameAccessFrequency(new->f) >= getFrameAccessFrequency(p->f))
 	{
-		while(p->next != NULL)
-		{
-			if(getFrameAccessFrequency(p->f) > getFrameAccessFrequency(new->f))
-			{
-				p = p->next;
-			}
-			else
-			{
-				new->next = p->next;
-				p->next = new;
-				return l;
-			}
-		}
-		p->next = new;
+		new->next = p;
+		return new;
 	}
+	
+	b = p;
+	p = p->next;
+	
+	while(p != NULL)
+	{
+		if(getFrameAccessFrequency(new->f) < getFrameAccessFrequency(p->f))
+		{
+			b = p;
+			p = p->next;
+		}
+		else if(getFrameAccessFrequency(new->f) >= getFrameAccessFrequency(p->f))
+		{
+			new->next = p;
+			b->next = new;	 	
+			return l;
+		}
+	}
+	b->next = new;
 
 	return l;
 }
@@ -90,22 +101,28 @@ List* listRemove(List* l, Frame** removedFrame)				// Pull least accessed frame 
 	List* p = l;
 	Frame* fCopy;
 
-	if(p != NULL)
+	if(p == NULL)
 	{
-		fCopy = newFrame(getFrameIndex(p->f), getFrameAssociatedProcess(p->f));
-		if(fCopy == NULL)
-		{
-			printf("ERROR: MEMORY ALLOCATION\n");
-			exit(1);
-		}
-		setFrameAccessFrequency(fCopy, getFrameAccessFrequency(p->f));
-		setFrameBitM(fCopy, getFrameBitM(p->f));
-		*removedFrame = fCopy;
-		if(l->next != NULL)
-			l = l->next;
-		else
-			l = NULL;	
+		printf("Cache is empty!\n");
+		return NULL;
 	}
+	
+	while(p->next != NULL)
+	{
+		p = p->next;	
+	}
+
+	fCopy = newFrame(getFrameIndex(p->f), getFrameAssociatedProcess(p->f));
+	if(fCopy == NULL)
+	{
+		printf("ERROR: MEMORY ALLOCATION\n");
+		exit(1);
+	}
+	setFrameAccessFrequency(fCopy, getFrameAccessFrequency(p->f));
+	setFrameBitM(fCopy, getFrameBitM(p->f));
+	*removedFrame = fCopy;
+
+	p->next = NULL;
 	
 	return l;
 }
@@ -177,10 +194,18 @@ List* listReaccess (List* l, unsigned int frameIndex, char action)	// Rearrange 
 			if(getFrameIndex(n->f) == frameIndex)
 			{
 				reaccessedFrame = n;
-				p->next = n->next;
-				upFrameAccessFrequency (reaccessedFrame->f);
+				if(n->next != NULL)
+				{	
+					p->next = n->next;
+				}
+				else
+				{
+					p->next = NULL;
+				}
+				reaccessedFrame->next = NULL;
 				processAction(reaccessedFrame->f, action);
-				return listInsert(l, reaccessedFrame->f);
+				l = listInsert(l, reaccessedFrame->f);
+				return l;
 			}
 
 			p = p->next;
